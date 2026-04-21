@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: feegow-mcp
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: FEEGOW_TOKEN
+        sync: false
