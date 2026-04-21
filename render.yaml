@@ -5,6 +5,8 @@ services:
     plan: free
     buildCommand: npm install
     startCommand: npm start
+    autoDeploy: true
+    healthCheckPath: /health
     envVars:
       - key: FEEGOW_TOKEN
         sync: false
