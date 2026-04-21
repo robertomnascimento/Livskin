@@ -32,9 +32,13 @@ function createMcpServer() {
   server.tool(
     "listar_profissionais",
     "Lista todos os profissionais de saúde cadastrados na clínica.",
-    {},
-    async () => {
-      const data = await feegowGet("/profissionais");
+    {
+      ativo: z.string().optional().describe("Filtrar ativos: 1 = ativo, 0 = inativo"),
+      especialidade_id: z.string().optional().describe("ID da especialidade"),
+      unidade_id: z.string().optional().describe("ID da unidade"),
+    },
+    async ({ ativo, especialidade_id, unidade_id }) => {
+      const data = await feegowGet("/professional/list", { ativo, especialidade_id, unidade_id });
       return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
     }
   );
@@ -45,54 +49,18 @@ function createMcpServer() {
     "Lista todas as especialidades médicas disponíveis na clínica.",
     {},
     async () => {
-      const data = await feegowGet("/especialidades");
+      const data = await feegowGet("/specialties/list");
       return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
     }
   );
 
-  // Locais / Unidades
+  // Status de agendamentos
   server.tool(
-    "listar_locais",
-    "Lista as unidades/locais de atendimento da clínica.",
+    "listar_status_agendamentos",
+    "Lista os possíveis status de agendamentos (marcado, atendido, cancelado, etc).",
     {},
     async () => {
-      const data = await feegowGet("/locais");
-      return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
-    }
-  );
-
-  // Convênios
-  server.tool(
-    "listar_convenios",
-    "Lista os convênios/planos de saúde aceitos pela clínica.",
-    {},
-    async () => {
-      const data = await feegowGet("/convenio");
-      return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
-    }
-  );
-
-  // Procedimentos
-  server.tool(
-    "listar_procedimentos",
-    "Lista os procedimentos e tipos de consulta disponíveis.",
-    {},
-    async () => {
-      const data = await feegowGet("/procedimentos");
-      return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
-    }
-  );
-
-  // Buscar paciente
-  server.tool(
-    "buscar_paciente",
-    "Busca pacientes pelo CPF ou nome.",
-    {
-      cpf: z.string().optional().describe("CPF do paciente (ex: 000.000.000-00)"),
-      nome: z.string().optional().describe("Nome ou parte do nome do paciente"),
-    },
-    async ({ cpf, nome }) => {
-      const data = await feegowGet("/pacientes", { cpf, nome });
+      const data = await feegowGet("/appoints/status");
       return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
     }
   );
@@ -102,40 +70,40 @@ function createMcpServer() {
     "listar_agendamentos",
     "Lista agendamentos/consultas num intervalo de datas.",
     {
-      data_inicio: z.string().optional().describe("Data início no formato YYYY-MM-DD"),
-      data_fim: z.string().optional().describe("Data fim no formato YYYY-MM-DD"),
+      data_inicio: z.string().describe("Data início no formato YYYY-MM-DD"),
+      data_fim: z.string().describe("Data fim no formato YYYY-MM-DD"),
       profissional_id: z.string().optional().describe("ID do profissional"),
       local_id: z.string().optional().describe("ID da unidade"),
     },
     async ({ data_inicio, data_fim, profissional_id, local_id }) => {
-      const data = await feegowGet("/agendamentos", {
-        data_inicio,
-        data_fim,
-        profissional_id,
-        local_id,
-      });
+      const data = await feegowGet("/appoints/list", { data_inicio, data_fim, profissional_id, local_id });
       return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
     }
   );
 
-  // Horários disponíveis
+  // Relatórios
   server.tool(
-    "horarios_disponiveis",
-    "Consulta horários disponíveis para agendamento de um profissional numa data.",
+    "listar_relatorios",
+    "Lista os relatórios disponíveis na clínica.",
+    {},
+    async () => {
+      const data = await feegowGet("/reports/list");
+      return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  // Buscar paciente
+  server.tool(
+    "buscar_paciente",
+    "Busca informações de um paciente pelo ID, CPF ou nome.",
     {
-      profissional_id: z.string().describe("ID do profissional"),
-      data: z.string().describe("Data no formato YYYY-MM-DD"),
-      local_id: z.string().optional().describe("ID da unidade (opcional)"),
-      especialidade_id: z.string().optional().describe("ID da especialidade (opcional)"),
+      paciente_id: z.string().optional().describe("ID do paciente"),
+      cpf: z.string().optional().describe("CPF do paciente"),
+      nome: z.string().optional().describe("Nome ou parte do nome do paciente"),
     },
-    async ({ profissional_id, data, local_id, especialidade_id }) => {
-      const result = await feegowGet("/horarios-disponiveis", {
-        profissional_id,
-        data,
-        local_id,
-        especialidade_id,
-      });
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    async ({ paciente_id, cpf, nome }) => {
+      const data = await feegowGet("/patient/search", { paciente_id, cpf, nome });
+      return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
     }
   );
 
