@@ -8,7 +8,7 @@ const FEEGOW_TOKEN = process.env.FEEGOW_TOKEN || "";
 const BASE_URL = "https://api.feegow.com/v1/api";
 const PORT = process.env.PORT || 3000;
 
-async function feegowGet(path, params = {} ) {
+async function feegowGet(path, params = {}) {
   if (!FEEGOW_TOKEN) {
     throw new Error("FEEGOW_TOKEN não configurado no ambiente.");
   }
@@ -54,6 +54,8 @@ function formatResponse(data) {
 function createMcpServer() {
   const server = new McpServer({ name: "feegow", version: "1.0.0" });
 
+  // ─── FERRAMENTAS EXISTENTES ───────────────────────────────────────────────
+
   server.tool(
     "listar_profissionais",
     "Lista profissionais da clínica. ativo=1 por padrão.",
@@ -63,7 +65,7 @@ function createMcpServer() {
       unidade_id: z.string().optional()
     },
     async ({ ativo = "1", especialidade_id, unidade_id }) => {
-      const data = await feegowGet("/professional/list", {
+      const data = await feegowGet("/profissional/list", {
         ativo,
         especialidade_id,
         unidade_id
@@ -214,8 +216,80 @@ function createMcpServer() {
     }
   );
 
+  // ─── FERRAMENTAS NOVAS ────────────────────────────────────────────────────
+
+  server.tool(
+    "listar_propostas",
+    "Lista propostas comerciais por data. Retorna status (aprovada, rejeitada, executada), procedimentos incluídos, valor total e forma de pagamento.",
+    {
+      data_proposta: z.string().optional().describe("Data das propostas no formato YYYY-MM-DD (ex: 2026-04-22)"),
+      data_alteracao: z.string().optional().describe("Data de alteração no formato YYYY-MM-DD (opcional)"),
+      paciente_id: z.string().optional().describe("ID do paciente para filtrar. Use 0 para todos os pacientes.")
+    },
+    async ({ data_proposta, data_alteracao, paciente_id = "0" }) => {
+      const data = await feegowGet("/proposal/list-dates", {
+        data_proposta,
+        data_alteracao,
+        PacienteID: paciente_id
+      });
+      return formatResponse(data);
+    }
+  );
+
+  server.tool(
+    "listar_financeiro",
+    "Lista contas e faturas do financeiro com detalhes de pagamento: valor, forma de pagamento (cartão, PIX, dinheiro), bandeira do cartão, parcelas e número de transação. Valores retornados em centavos. Formas de pagamento: 1=Dinheiro, 8=Cartão Crédito, 9=Cartão Débito, 15=PIX, 3=Transferência, 4=Boleto.",
+    {
+      data_start: z.string().optional().describe("Data inicial no formato DD-MM-YYYY (ex: 22-04-2026)"),
+      data_end: z.string().optional().describe("Data final no formato DD-MM-YYYY (ex: 22-04-2026)"),
+      tipo_transacao: z.string().optional().describe("C = Crédito (entradas), D = Débito (saídas). Opcional."),
+      unidade_id: z.string().optional().describe("ID da unidade. Use 0 para todas as unidades.")
+    },
+    async ({ data_start, data_end, tipo_transacao, unidade_id = "0" }) => {
+      const data = await feegowGet("/financial/list-invoice", {
+        data_start,
+        data_end,
+        tipo_transacao,
+        unidade_id
+      });
+      return formatResponse(data);
+    }
+  );
+
+  server.tool(
+    "listar_motivos_cancelamento",
+    "Lista todos os motivos disponíveis para cancelamento ou reagendamento de consultas.",
+    {},
+    async () => {
+      const data = await feegowGet("/appoints/motives");
+      return formatResponse(data);
+    }
+  );
+
+  server.tool(
+    "listar_bandeiras_cartao",
+    "Lista as bandeiras de cartão de crédito/débito disponíveis no sistema (Visa, Mastercard, Elo, etc.) com seus respectivos IDs. Use para interpretar o campo bandeira_id retornado pelo listar_financeiro.",
+    {},
+    async () => {
+      const data = await feegowGet("/financial/credit-card-flags");
+      return formatResponse(data);
+    }
+  );
+
+  server.tool(
+    "listar_origens_paciente",
+    "Lista as origens e canais de captação de pacientes cadastrados no sistema (ex: indicação, redes sociais, eventos, etc.).",
+    {},
+    async () => {
+      const data = await feegowGet("/patient/list-sources");
+      return formatResponse(data);
+    }
+  );
+
   return server;
 }
+
+// ─── EXPRESS APP ──────────────────────────────────────────────────────────────
 
 const app = express();
 app.use(express.json());
